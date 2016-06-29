@@ -4,6 +4,9 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 
+import javax.microedition.khronos.egl.EGLConfig;
+import javax.microedition.khronos.opengles.GL10;
+
 import android.content.Context;
 import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
@@ -141,5 +144,14 @@ public  abstract class MagicDisplay implements Renderer{
 	}
 	public interface OnOpenGlPreviewCallback {
 		public void onRead(int textureId);
+	}
+	protected Callback callback;
+	public void setCallback(Callback callback){
+		this.callback = callback;
+	}
+	public interface Callback{
+		public void onSurfaceCreated(GL10 gl, EGLConfig config);
+		public void onSurfaceChanged(GL10 gl, int width, int height);
+		public void onDrawFrame(GL10 gl);
 	}
 }

@@ -64,6 +64,9 @@ public class MagicCameraDisplay extends MagicDisplay{
         MagicFilterParam.initMagicFilterParam(gl);
         //初始化滤镜
         mCameraInputFilter.init();
+        if(callback != null){
+        	callback.onSurfaceCreated(gl, config);
+        }
 //        magicRGB.init();
 	}
 
@@ -75,14 +78,16 @@ public class MagicCameraDisplay extends MagicDisplay{
 		mSurfaceHeight = height;
 		// 设置size大小
 		onFilterChanged();
+		if(callback != null){
+			callback.onSurfaceChanged(gl, width, height);
+		}
 	}
 
 	@Override
 	public void onDrawFrame(GL10 gl) {
-//		GLES20.glViewport(0, 0,mImageWidth , mImageHeight);
-		
 		GLES20.glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 		GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);	
+		if(mSurfaceTexture == null) return;
 		mSurfaceTexture.updateTexImage();
 		float[] mtx = new float[16];
 		mSurfaceTexture.getTransformMatrix(mtx);
@@ -95,7 +100,9 @@ public class MagicCameraDisplay extends MagicDisplay{
 			textureID = mCameraInputFilter.onDrawToTexture(mTextureId);	
 			mFilters.onDrawFrame(textureID, mGLCubeBuffer, mGLTextureBuffer);
 		}
-		  
+		if(callback != null){
+			callback.onDrawFrame(gl);  
+		}
 	}
 	
 	
