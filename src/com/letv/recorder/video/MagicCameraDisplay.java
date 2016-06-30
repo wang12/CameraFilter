@@ -1,6 +1,6 @@
 package com.letv.recorder.video;
 
-import java.nio.ByteBuffer;
+import java.io.IOException;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
@@ -11,6 +11,8 @@ import android.graphics.SurfaceTexture.OnFrameAvailableListener;
 import android.hardware.Camera.Size;
 import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
+import android.os.Handler;
+import android.os.Message;
 
 import com.letv.filter.common.base.MagicCameraInputFilter;
 import com.letv.filter.helper.MagicFilterParam;
@@ -30,10 +32,13 @@ public class MagicCameraDisplay extends MagicDisplay{
 	 * 过程见{@link OpenGLUtils.getExternalOESTextureID()};
 	 */
 	private SurfaceTexture mSurfaceTexture;
+	private CircularEncoder mCircEncoder;
+	private MainHandler mHandler;
 	
 	public MagicCameraDisplay(Context context, GLSurfaceView glSurfaceView){
 		super(context, glSurfaceView);
 		mCameraInputFilter = new MagicCameraInputFilter();
+		 mHandler = new MainHandler();
 	}
 
 	public SurfaceTexture getSurfaceTexture() {
@@ -46,6 +51,7 @@ public class MagicCameraDisplay extends MagicDisplay{
 					@Override
 					public void onFrameAvailable(SurfaceTexture surfaceTexture) {
 						mGLSurfaceView.requestRender();
+						mCircEncoder.frameAvailableSoon();
 					}
 				});
 		return mSurfaceTexture;
@@ -67,6 +73,11 @@ public class MagicCameraDisplay extends MagicDisplay{
         if(callback != null){
         	callback.onSurfaceCreated(gl, config);
         }
+        try {
+            mCircEncoder = new CircularEncoder(mImageWidth, mImageHeight, 6000000, CameraManager.getCManager().chooseFixedPreviewFps(15 * 1000) / 1000, 7, mHandler);
+        } catch (IOException ioe) {
+            throw new RuntimeException(ioe);
+        }
 //        magicRGB.init();
 	}
 
@@ -87,17 +98,14 @@ public class MagicCameraDisplay extends MagicDisplay{
 	public void onDrawFrame(GL10 gl) {
 		GLES20.glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 		GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);	
-		if(mSurfaceTexture == null) return;
 		mSurfaceTexture.updateTexImage();
 		float[] mtx = new float[16];
 		mSurfaceTexture.getTransformMatrix(mtx);
 		mCameraInputFilter.setTextureTransformMatrix(mtx);
-		int textureID = 0;
 		if(mFilters == null){
-			textureID = mTextureId;
 			mCameraInputFilter.onDrawFrame(mTextureId, mGLCubeBuffer, mGLTextureBuffer);
 		}else{
-			textureID = mCameraInputFilter.onDrawToTexture(mTextureId);	
+			int textureID = mCameraInputFilter.onDrawToTexture(mTextureId);	
 			mFilters.onDrawFrame(textureID, mGLCubeBuffer, mGLTextureBuffer);
 		}
 		if(callback != null){
@@ -143,4 +151,87 @@ public class MagicCameraDisplay extends MagicDisplay{
         mGLTextureBuffer.put(textureCords).position(0);
     }	
 
+	public void onPause(){
+	    if (mCircEncoder != null) {
+            mCircEncoder.shutdown();
+            mCircEncoder = null;
+        }
+	}
+	
+	
+	
+	
+	
+	private static class MainHandler extends Handler implements CircularEncoder.Callback {
+        public static final int MSG_BLINK_TEXT = 0;
+        public static final int MSG_FRAME_AVAILABLE = 1;
+        public static final int MSG_FILE_SAVE_COMPLETE = 2;
+        public static final int MSG_BUFFER_STATUS = 3;
+
+//        private WeakReference<ContinuousCaptureActivity> mWeakActivity;
+
+        public MainHandler() {
+//            mWeakActivity = new WeakReference<ContinuousCaptureActivity>(activity);
+        }
+
+        // CircularEncoder.Callback, called on encoder thread
+        @Override
+        public void fileSaveComplete(int status) {
+            sendMessage(obtainMessage(MSG_FILE_SAVE_COMPLETE, status, 0, null));
+        }
+
+        // CircularEncoder.Callback, called on encoder thread
+        @Override
+        public void bufferStatus(long totalTimeMsec) {
+            sendMessage(obtainMessage(MSG_BUFFER_STATUS,
+                    (int) (totalTimeMsec >> 32), (int) totalTimeMsec));
+        }
+
+
+        @Override
+        public void handleMessage(Message msg) {
+//            ContinuousCaptureActivity activity = mWeakActivity.get();
+//            if (activity == null) {
+//                Log.d(TAG, "Got message for dead activity");
+//                return;
+//            }
+
+//            switch (msg.what) {
+//                case MSG_BLINK_TEXT: {
+//                    TextView tv = (TextView) activity.findViewById(R.id.recording_text);
+//
+//                    // Attempting to make it blink by using setEnabled() doesn't work --
+//                    // it just changes the color.  We want to change the visibility.
+//                    int visibility = tv.getVisibility();
+//                    if (visibility == View.VISIBLE) {
+//                        visibility = View.INVISIBLE;
+//                    } else {
+//                        visibility = View.VISIBLE;
+//                    }
+//                    tv.setVisibility(visibility);
+//
+//                    int delay = (visibility == View.VISIBLE) ? 1000 : 200;
+//                    sendEmptyMessageDelayed(MSG_BLINK_TEXT, delay);
+//                    break;
+//                }
+//                case MSG_FRAME_AVAILABLE: {
+//                    activity.drawFrame();
+//                    break;
+//                }
+//                case MSG_FILE_SAVE_COMPLETE: {
+//                    activity.fileSaveComplete(msg.arg1);
+//                    break;
+//                }
+//                case MSG_BUFFER_STATUS: {
+//                    long duration = (((long) msg.arg1) << 32) |
+//                                    (((long) msg.arg2) & 0xffffffffL);
+//                    activity.updateBufferStatus(duration);
+//                    break;
+//                }
+//                default:
+//                    throw new RuntimeException("Unknown message " + msg.what);
+//            }
+        }
+    }
+	
 }

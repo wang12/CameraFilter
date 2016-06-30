@@ -11,6 +11,7 @@ import com.letv.recorder.video.MagicDisplay.Callback;
 
 import android.app.Activity;
 import android.content.res.Configuration;
+import android.hardware.Camera.CameraInfo;
 import android.opengl.GLSurfaceView;
 import android.os.Bundle;
 import android.view.ViewGroup.LayoutParams;
@@ -75,20 +76,36 @@ public class MainActivity extends Activity implements Callback{
 	public void onDrawFrame(GL10 gl) {
 		
 	}
+//	if(facing){
+//		orientation = 90;
+//	}else{
+//		orientation = 270;
+//	}
+//}else{
+//	if(facing){
+//		orientation = 180;
+//	}else{
+//		orientation = 0;
+//	}
 	@Override
 	protected void onResume() {
 		super.onResume();
+		CameraManager cManager = CameraManager.getCManager();
+		CameraManager.getCManager().init();
 		if(getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE ){
 			isLandscape = true;
 		}else{
 			isLandscape = false;
 		}
-		CameraManager.getCManager().init();
+		cameraDisplay.setSizeOrOrientation(cManager.getParameters().getPreviewSize(), 0, false);
 		CameraManager.getCManager().open(cameraDisplay.getSurfaceTexture(),isLandscape);
 	}
 	@Override
 	protected void onPause() {
 		super.onPause();
+		if(cameraDisplay != null){
+			cameraDisplay.onPause();
+		}
 		CameraManager.getCManager().close();
 	}
 }

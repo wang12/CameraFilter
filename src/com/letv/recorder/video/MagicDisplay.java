@@ -92,9 +92,6 @@ public  abstract class MagicDisplay implements Renderer{
             		mFilters.destroy();
             	mFilters = null;
             	mFilters = MagicFilterFactory.getFilters(filterType, mContext);
-//            	if(mFilters != null){
-//            		mFilters.setOnOpenGlPreviewCallback(opck);
-//            	}
             	if(mFilters != null)
 	            	mFilters.init();
             	onFilterChanged();

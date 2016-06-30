@@ -127,33 +127,30 @@ public class GPUImageFilter {
     }
 
     public int onDrawFrame(final int textureId, final FloatBuffer cubeBuffer, final FloatBuffer textureBuffer) {
-        GLES20.glUseProgram(mGLProgId);
-        runPendingOnDrawTasks();
-        if (!mIsInitialized) {
-            return OpenGLUtils.NOT_INIT;
-        }
-
-        cubeBuffer.position(0);
-        GLES20.glVertexAttribPointer(mGLAttribPosition, 2, GLES20.GL_FLOAT, false, 0, cubeBuffer);
-        GLES20.glEnableVertexAttribArray(mGLAttribPosition);
-        textureBuffer.position(0);
-        GLES20.glVertexAttribPointer(mGLAttribTextureCoordinate, 2, GLES20.GL_FLOAT, false, 0,textureBuffer);
-        GLES20.glEnableVertexAttribArray(mGLAttribTextureCoordinate);
-        
-        if (textureId != OpenGLUtils.NO_TEXTURE) {
-            GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
-            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textureId);
-            GLES20.glUniform1i(mGLUniformTexture, 0);
-        }
-        onDrawArraysPre();
-        GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4);
-        GLES20.glDisableVertexAttribArray(mGLAttribPosition);
-        GLES20.glDisableVertexAttribArray(mGLAttribTextureCoordinate);
-        onDrawArraysAfter();
-//        opc.onRead(textureId);
-        GLES20.glViewport(0, 0, mSurfaceWidth, mSurfaceHeight);
-        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
-        return OpenGLUtils.ON_DRAWN;
+    	GLES20.glUseProgram(mGLProgId);
+		runPendingOnDrawTasks();
+		if (!mIsInitialized) 
+			return OpenGLUtils.NOT_INIT;
+		
+		mGLCubeBuffer.position(0);
+		GLES20.glVertexAttribPointer(mGLAttribPosition, 2, GLES20.GL_FLOAT, false, 0, mGLCubeBuffer);
+		GLES20.glEnableVertexAttribArray(mGLAttribPosition);
+		mGLTextureBuffer.position(0);
+		GLES20.glVertexAttribPointer(mGLAttribTextureCoordinate, 2, GLES20.GL_FLOAT, false, 0,
+		     mGLTextureBuffer);
+		GLES20.glEnableVertexAttribArray(mGLAttribTextureCoordinate);
+		if (textureId != OpenGLUtils.NO_TEXTURE) {
+		 GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
+		 GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textureId);
+		 GLES20.glUniform1i(mGLUniformTexture, 0);
+		}
+		onDrawArraysPre();
+		GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4);
+		GLES20.glDisableVertexAttribArray(mGLAttribPosition);
+		GLES20.glDisableVertexAttribArray(mGLAttribTextureCoordinate);
+		onDrawArraysAfter();
+		GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
+		return OpenGLUtils.ON_DRAWN;
     }
     
     protected void onDrawArraysPre() {}
