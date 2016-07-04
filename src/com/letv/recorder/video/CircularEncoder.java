@@ -17,6 +17,8 @@
 package com.letv.recorder.video;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.nio.ByteBuffer;
@@ -25,6 +27,7 @@ import android.media.MediaCodec;
 import android.media.MediaCodecInfo;
 import android.media.MediaFormat;
 import android.media.MediaMuxer;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
@@ -52,7 +55,7 @@ public class CircularEncoder {
          *
          * @param status Zero means success, nonzero indicates failure.
          */
-        void fileSaveComplete(int status);
+//        void fileSaveComplete(int status);
 
         /**
          * Called occasionally.
@@ -71,8 +74,7 @@ public class CircularEncoder {
      * @param frameRate Expected frame rate.
      * @param desiredSpanSec How many seconds of video we want to have in our buffer at any time.
      */
-    public CircularEncoder(int width, int height, int bitRate, int frameRate, int desiredSpanSec,
-            Callback cb) throws IOException {
+    public CircularEncoder(int width, int height, int bitRate, int frameRate, int desiredSpanSec) throws IOException {
         // The goal is to size the buffer so that we can accumulate N seconds worth of video,
         // where N is passed in as "desiredSpanSec".  If the codec generates data at roughly
         // the requested bit rate, we can compute it as time * bitRate / bitsPerByte.
@@ -108,7 +110,7 @@ public class CircularEncoder {
 
         // Start the encoder thread last.  That way we're sure it can see all of the state
         // we've initialized.
-        mEncoderThread = new EncoderThread(mEncoder, encBuffer, cb);
+        mEncoderThread = new EncoderThread(mEncoder, encBuffer);
         mEncoderThread.start();
         mEncoderThread.waitUntilReady();
     }
@@ -171,11 +173,11 @@ public class CircularEncoder {
      * draining the output buffers while this runs.  It would be wise to stop submitting
      * frames during this time.
      */
-    public void saveVideo(File outputFile) {
-        Handler handler = mEncoderThread.getHandler();
-        handler.sendMessage(handler.obtainMessage(
-                EncoderThread.EncoderHandler.MSG_SAVE_VIDEO, outputFile));
-    }
+//    public void saveVideo(File outputFile) {
+//        Handler handler = mEncoderThread.getHandler();
+//        handler.sendMessage(handler.obtainMessage(
+//                EncoderThread.EncoderHandler.MSG_SAVE_VIDEO, outputFile));
+//    }
 
     /**
      * Object that encapsulates the encoder thread.
@@ -199,19 +201,37 @@ public class CircularEncoder {
 
         private EncoderHandler mHandler;
         private CircularEncoderBuffer mEncBuffer;
-        private CircularEncoder.Callback mCallback;
+//        private CircularEncoder.Callback mCallback;
         private int mFrameNum;
 
         private final Object mLock = new Object();
         private volatile boolean mReady = false;
+        public FileOutputStream outFile;
 
-        public EncoderThread(MediaCodec mediaCodec, CircularEncoderBuffer encBuffer,CircularEncoder.Callback callback) {
+        public EncoderThread(MediaCodec mediaCodec, CircularEncoderBuffer encBuffer) {
             mEncoder = mediaCodec;
             mEncBuffer = encBuffer;
-            mCallback = callback;
+//            mCallback = callback;
 
             mBufferInfo = new MediaCodec.BufferInfo();
+            try {
+            	File file = new File(Environment.getExternalStorageDirectory(),"/magicCamera.h264");
+            	if(file.exists()){
+            		file.delete();
+            	}
+				outFile =  new FileOutputStream(file,true);
+			} catch (FileNotFoundException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
         }
+//        public EncoderThread(MediaCodec mediaCodec, CircularEncoderBuffer encBuffer,CircularEncoder.Callback callback) {
+//        	mEncoder = mediaCodec;
+//        	mEncBuffer = encBuffer;
+////            mCallback = callback;
+//        	
+//        	mBufferInfo = new MediaCodec.BufferInfo();
+//        }
 
         /**
          * Thread entry point.
@@ -289,23 +309,29 @@ public class CircularEncoder {
                         throw new RuntimeException("encoderOutputBuffer " + encoderStatus + " was null");
                     }
 
-                    if ((mBufferInfo.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
-                        if (VERBOSE) Log.d(TAG, "ignoring BUFFER_FLAG_CODEC_CONFIG");
-                        mBufferInfo.size = 0;
-                    }
-
-                    if (mBufferInfo.size != 0) {
-                        // adjust the ByteBuffer values to match BufferInfo (not needed?)
-                        encodedData.position(mBufferInfo.offset);
-                        encodedData.limit(mBufferInfo.offset + mBufferInfo.size);
-
-                        mEncBuffer.add(encodedData, mBufferInfo.flags,mBufferInfo.presentationTimeUs);
-
-                        if (VERBOSE) {
-                            Log.d(TAG, "sent " + mBufferInfo.size + " bytes to muxer, ts=" + mBufferInfo.presentationTimeUs);
-                        }
-                    }
-
+//                    if ((mBufferInfo.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
+//                        if (VERBOSE) Log.d(TAG, "ignoring BUFFER_FLAG_CODEC_CONFIG");
+//                        mBufferInfo.size = 0;
+//                    }
+//
+//                    if (mBufferInfo.size != 0) {
+//                        // adjust the ByteBuffer values to match BufferInfo (not needed?)
+//                        encodedData.position(mBufferInfo.offset);
+//                        encodedData.limit(mBufferInfo.offset + mBufferInfo.size);
+//
+//                        mEncBuffer.add(encodedData, mBufferInfo.flags,mBufferInfo.presentationTimeUs);
+//
+//                        if (VERBOSE) {
+//                            Log.d(TAG, "sent " + mBufferInfo.size + " bytes to muxer, ts=" + mBufferInfo.presentationTimeUs);
+//                        }
+//                    }
+                    byte[] outData = new byte[mBufferInfo.size];
+                    encodedData.get(outData);
+                    try {
+						outFile.write(outData);
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
                     mEncoder.releaseOutputBuffer(encoderStatus, false);
 
                     if ((mBufferInfo.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
@@ -326,9 +352,9 @@ public class CircularEncoder {
             drainEncoder();
 
             mFrameNum++;
-            if ((mFrameNum % 10) == 0) {        // TODO: should base off frame rate or clock?
-                mCallback.bufferStatus(mEncBuffer.computeTimeSpanUsec());
-            }
+//            if ((mFrameNum % 10) == 0) {        // TODO: should base off frame rate or clock?
+//                mCallback.bufferStatus(mEncBuffer.computeTimeSpanUsec());
+//            }
         }
 
         /**
@@ -348,7 +374,7 @@ public class CircularEncoder {
             int index = mEncBuffer.getFirstIndex();
             if (index < 0) {
                 Log.w(TAG, "Unable to get first index");
-                mCallback.fileSaveComplete(1);
+//                mCallback.fileSaveComplete(1);
                 return;
             }
 
@@ -383,7 +409,7 @@ public class CircularEncoder {
             if (VERBOSE) {
                 Log.d(TAG, "muxer stopped, result=" + result);
             }
-            mCallback.fileSaveComplete(result);
+//            mCallback.fileSaveComplete(result);
         }
 
         /**
@@ -391,6 +417,15 @@ public class CircularEncoder {
          */
         void shutdown() {
             if (VERBOSE) Log.d(TAG, "shutdown");
+            if(outFile!= null){
+            	try {
+					outFile.flush();
+					outFile.close();
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+            }
             Looper.myLooper().quit();
         }
 

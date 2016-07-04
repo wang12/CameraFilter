@@ -128,6 +128,10 @@ public class CameraManager {
 	}
 
 	public int chooseFixedPreviewFps(int desiredThousandFps) {
+		if(camera == null){
+			Log.e(TAG, "摄像头没有打开");
+			return -1;
+		}
 		Parameters parms = camera.getParameters();
 		List<int[]> supported = parms.getSupportedPreviewFpsRange();
 
